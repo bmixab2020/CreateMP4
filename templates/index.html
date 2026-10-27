@@ -96,7 +96,7 @@ document.getElementById('form').addEventListener('submit', async (e) => {
     if (f) { fd.append('photos', f); fd.append('times', t); count++; totalSeconds += parseFloat(t) || 0; }
   });
   if (count === 0) { document.getElementById('status').textContent = 'Add at least one photo.'; return; }
-  const est = Math.max(3, Math.round(totalSeconds * 0.4 + count * 0.5));
+  const est = Math.max(10, Math.round(totalSeconds * 0.4 + count * 0.5));
   const status = document.getElementById('status');
   status.textContent = 'Creating video (' + count + ' photo(s))... estimated ~' + est + 's';
   document.querySelectorAll('#form input, #form button').forEach(el => { el.disabled = true; });
@@ -104,7 +104,7 @@ document.getElementById('form').addEventListener('submit', async (e) => {
   const timer = setInterval(() => {
     elapsed++;
     status.textContent = 'Creating... ' + elapsed + 's elapsed (est ~' + est + 's)';
-  }, 1000);
+  }, 10000);
   try {
     const res = await fetch('/create', { method: 'POST', body: fd });
     const data = await res.json();
