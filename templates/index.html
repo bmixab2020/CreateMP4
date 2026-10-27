@@ -67,6 +67,10 @@ addRow(null, 7);
 
 document.getElementById('pick').onclick = () => document.getElementById('picker').click();
 document.getElementById('picker').addEventListener('change', (e) => {
+  document.querySelectorAll('#photos .row').forEach(row => {
+    const f = row.querySelector('input[type=file]').files[0];
+    if (!f) row.remove();
+  });
   Array.from(e.target.files).forEach(f => addRow(f, 7));
   e.target.value = '';
 });
@@ -102,7 +106,7 @@ document.getElementById('form').addEventListener('submit', async (e) => {
   document.querySelectorAll('#form input, #form button').forEach(el => { el.disabled = true; });
   let elapsed = 0;
   const timer = setInterval(() => {
-    elapsed++;
+    elapsed += 10;
     status.textContent = 'Creating... ' + elapsed + 's elapsed (est ~' + est + 's)';
   }, 10000);
   try {
