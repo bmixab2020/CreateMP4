@@ -49,7 +49,8 @@ def create():
             music_path = os.path.join(jobdir, secure_filename(music.filename))
             music.save(music_path)
 
-        imgs = [Image.open(p).convert("RGB") for p in photo_paths]
+        from PIL import ImageOps
+        imgs = [ImageOps.exif_transpose(Image.open(p)).convert("RGB") for p in photo_paths]
         w, h = imgs[0].size
         scale = min(1920 / w, 1080 / h, 1.0)
         w = int(w * scale)
