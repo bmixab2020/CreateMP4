@@ -51,19 +51,29 @@ def create():
 
         from PIL import ImageOps
         imgs = [ImageOps.exif_transpose(Image.open(p)).convert("RGB") for p in photo_paths]
-        w, h = imgs[0].size
-        scale = min(1920 / w, 1080 / h, 1.0)
-        w = int(w * scale)
-        h = int(h * scale)
-        w = w - (w % 2)
-        h = h - (h % 2)
-        if w == 0 or h == 0:
-            raise ValueError("invalid image size")
+        all_portrait = all(im.width < im.height for im in imgs)
+        if all_portrait:
+            canvas_w, canvas_h = 1080, 1920
+        else:
+            canvas_w, canvas_h = 1920, 1080
+        canvas_w = canvas_w - (canvas_w % 2)
+        canvas_h = canvas_h - (canvas_h % 2)
+
+        def fit(im):
+            scale = min(canvas_w / im.width, canvas_h / im.height)
+            nw = int(im.width * scale)
+            nh = int(im.height * scale)
+            nw = nw - (nw % 2)
+            nh = nh - (nh % 2)
+            resized = im.resize((nw, nh), Image.LANCZOS)
+            canvas = Image.new("RGB", (canvas_w, canvas_h), (0, 0, 0))
+            canvas.paste(resized, ((canvas_w - nw) // 2, (canvas_h - nh) // 2))
+            return canvas
 
         clips = []
         for im, dur in zip(imgs, durations):
-            resized = im.resize((w, h), Image.LANCZOS)
-            arr = np.array(resized)
+            frame = fit(im)
+            arr = np.array(frame)
             clips.append(ImageClip(arr).with_duration(dur))
         video = concatenate_videoclips(clips, method="compose")
 
