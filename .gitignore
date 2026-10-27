@@ -1,0 +1,8 @@
+﻿uploads/
+outputs/
+__pycache__/
+*.pyc
+
+TEMP_MPY_*
+*.mp4
+.idea/

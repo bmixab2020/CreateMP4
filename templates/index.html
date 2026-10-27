@@ -1,0 +1,126 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CreateMP4</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 16px; }
+.row { display: flex; gap: 16px; align-items: center; margin-bottom: 8px; }
+.row input[type=file] { flex: 1; height: 28px; }
+.row input[type=number] { height: 28px; }
+.row button { height: 34px; padding: 0 10px; }
+button { padding: 8px 14px; cursor: pointer; }
+#status { margin-top: 12px; }
+.hint { color: #555; font-size: 13px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<h1>Create MP4</h1>
+<p class="hint">Add one row per photo (file + display time in seconds), or use "Select photos" to add many at once.</p>
+<form id="form">
+  <label>Video name:</label><br>
+  <input type="text" name="videoname" id="videoname" placeholder="my_video (optional)"><br><br>
+
+  <label>Music (mp3, optional):</label><br>
+  <input type="file" name="music" accept="audio/mpeg,audio/mp3,audio/*" id="music"><br><br>
+
+  <div style="display:flex; gap:8px; margin-bottom:4px; font-weight:bold;">
+    <span style="flex:1;">Photos</span>
+    <span>Display Time (seconds)</span>
+  </div>
+  <div id="photos"></div>
+  <button type="button" id="add">Add photo row</button>
+  <button type="button" id="pick">Select photos (multiple)</button>
+  <button type="button" id="clear">Clear</button>
+  <input type="file" id="picker" accept="image/*" multiple style="display:none">
+  <br><br>
+
+  <button type="submit" id="create">Create Video</button>
+</form>
+<div id="status"></div>
+<a id="dl" style="display:none" download>Download MP4</a>
+
+<script>
+const photosDiv = document.getElementById('photos');
+function addRow(file, time) {
+  const row = document.createElement('div');
+  row.className = 'row';
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.name = 'photos'; fileInput.accept = 'image/*'; fileInput.required = true;
+  if (file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+  }
+  const timeInput = document.createElement('input');
+  timeInput.type = 'number'; timeInput.name = 'times'; timeInput.placeholder = 'seconds'; timeInput.min = '0.1'; timeInput.step = '0.1'; timeInput.required = true;
+  timeInput.value = (time != null ? time : 7);
+  timeInput.style.width = '80px';
+  const rm = document.createElement('button');
+  rm.type = 'button'; rm.textContent = 'Remove';
+  rm.onclick = () => row.remove();
+  row.appendChild(fileInput); row.appendChild(timeInput); row.appendChild(rm);
+  photosDiv.appendChild(row);
+}
+document.getElementById('add').onclick = () => addRow();
+addRow(null, 7);
+
+document.getElementById('pick').onclick = () => document.getElementById('picker').click();
+document.getElementById('picker').addEventListener('change', (e) => {
+  Array.from(e.target.files).forEach(f => addRow(f, 7));
+  e.target.value = '';
+});
+
+document.getElementById('clear').onclick = () => {
+  document.getElementById('form').reset();
+  photosDiv.innerHTML = '';
+  addRow(null, 7);
+  document.getElementById('status').textContent = '';
+  const dl = document.getElementById('dl');
+  dl.style.display = 'none';
+  dl.removeAttribute('href');
+};
+
+document.getElementById('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData();
+  const videoName = document.getElementById('videoname').value.trim();
+  if (videoName) fd.append('videoname', videoName);
+  const music = document.getElementById('music').files[0];
+  if (music) fd.append('music', music);
+  let count = 0;
+  let totalSeconds = 0;
+  document.querySelectorAll('#photos .row').forEach(row => {
+    const f = row.querySelector('input[type=file]').files[0];
+    const t = row.querySelector('input[type=number]').value;
+    if (f) { fd.append('photos', f); fd.append('times', t); count++; totalSeconds += parseFloat(t) || 0; }
+  });
+  if (count === 0) { document.getElementById('status').textContent = 'Add at least one photo.'; return; }
+  const est = Math.max(3, Math.round(totalSeconds * 0.4 + count * 0.5));
+  const status = document.getElementById('status');
+  status.textContent = 'Creating video (' + count + ' photo(s))... estimated ~' + est + 's';
+  document.querySelectorAll('#form input, #form button').forEach(el => { el.disabled = true; });
+  let elapsed = 0;
+  const timer = setInterval(() => {
+    elapsed++;
+    status.textContent = 'Creating... ' + elapsed + 's elapsed (est ~' + est + 's)';
+  }, 1000);
+  try {
+    const res = await fetch('/create', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'failed');
+    const dl = document.getElementById('dl');
+    dl.href = data.download;
+    dl.style.display = 'inline-block';
+    dl.textContent = 'Download MP4';
+    status.textContent = 'Done: ' + count + ' photo(s).';
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  } finally {
+    clearInterval(timer);
+    document.querySelectorAll('#form input, #form button').forEach(el => { el.disabled = false; });
+  }
+});
+</script>
+</body>
+</html>
