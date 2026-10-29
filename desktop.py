@@ -105,6 +105,16 @@ class App:
     def set_status(self, text):
         self.status_var.set(text)
 
+    def _set_all_state(self, state):
+        def recurse(w):
+            try:
+                w.config(state=state)
+            except Exception:
+                pass
+            for c in w.winfo_children():
+                recurse(c)
+        recurse(self.root)
+
     def create(self):
         valid = [r for r in self.rows if r.path]
         if not valid:
@@ -123,7 +133,7 @@ class App:
             return
         if not out_path.lower().endswith(".mp4"):
             out_path += ".mp4"
-        self.create_btn.config(state="disabled")
+        self._set_all_state("disabled")
         threading.Thread(target=self._run, args=(out_path, valid, durations), daemon=True).start()
 
     def _run(self, out_path, rows, durations):
@@ -176,7 +186,7 @@ class App:
             self.root.after(0, lambda: self.set_status("Error: " + str(e)))
             self.root.after(0, lambda: messagebox.showerror("Error", str(e)))
         finally:
-            self.root.after(0, lambda: self.create_btn.config(state="normal"))
+            self.root.after(0, lambda: self._set_all_state("normal"))
 
 if __name__ == "__main__":
     root = Tk()
