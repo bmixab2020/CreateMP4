@@ -142,7 +142,7 @@ class App:
     def _run(self, out_path, rows, durations):
         try:
             start_time = datetime.now()
-            self.root.after(0, lambda: self.set_status("Started " + start_time.strftime("%H:%M:%S") + " - Loading images..."))
+            self.root.after(0, lambda: self.set_status("Begin: " + start_time.strftime("%H:%M:%S")))
             imgs = [ImageOps.exif_transpose(Image.open(r.path)).convert("RGB") for r in rows]
             all_portrait = all(im.width < im.height for im in imgs)
             if all_portrait:
@@ -185,7 +185,7 @@ class App:
             video.write_videofile(out_path, fps=24, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast", logger=None)
             video.close()
             end_time = datetime.now()
-            self.root.after(0, lambda: self.set_status("Done: " + out_path + " | Started " + start_time.strftime("%H:%M:%S") + " Ended " + end_time.strftime("%H:%M:%S")))
+            self.root.after(0, lambda: self.set_status("End: " + end_time.strftime("%H:%M:%S") + " - Done: " + out_path))
             self.root.after(0, lambda: messagebox.showinfo("Done", "Saved to\n" + out_path))
         except Exception as e:
             self.root.after(0, lambda: self.set_status("Error: " + str(e)))
