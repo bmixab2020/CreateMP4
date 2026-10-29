@@ -1,15 +1,39 @@
 ﻿import os
 import threading
-from tkinter import Tk, Label, Entry, Button, Frame, Canvas, Scrollbar, filedialog, messagebox, StringVar, VERTICAL, RIGHT, Y, LEFT, BOTH
+from tkinter import Tk, Label, Entry, Button, Frame, Canvas, Scrollbar, filedialog, messagebox, StringVar, VERTICAL, RIGHT, Y, LEFT, BOTH, TOP
 from PIL import Image, ImageOps
 import numpy as np
 from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, concatenate_audioclips
+
+class PhotoRow:
+    def __init__(self, parent, remove_cb):
+        self.parent = parent
+        self.remove_cb = remove_cb
+        self.path = None
+        self.time_var = StringVar(value="7")
+        self.frame = Frame(parent)
+        self.frame.pack(fill="x", pady=2)
+        self.name_label = Label(self.frame, text="No file selected", width=32, anchor="w")
+        self.name_label.pack(side=LEFT)
+        Button(self.frame, text="Browse", command=self.browse).pack(side=LEFT, padx=4)
+        Entry(self.frame, textvariable=self.time_var, width=8).pack(side=LEFT, padx=4)
+        Button(self.frame, text="Remove", command=self.remove).pack(side=LEFT, padx=4)
+
+    def browse(self):
+        path = filedialog.askopenfilename(title="Select photo", filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp *.gif *.webp"), ("All", "*.*")])
+        if path:
+            self.path = path
+            self.name_label.config(text=os.path.basename(path))
+
+    def remove(self):
+        self.frame.destroy()
+        self.remove_cb(self)
 
 class App:
     def __init__(self, root):
         self.root = root
         root.title("CreateMP4")
-        self.photos = []
+        self.rows = []
         self.music_path = None
 
         Label(root, text="Video name:").pack(anchor="w", padx=8, pady=(8, 0))
@@ -24,13 +48,14 @@ class App:
 
         pf = Frame(root)
         pf.pack(fill="x", padx=8)
-        Button(pf, text="Select Photos", command=self.select_photos).pack(side=LEFT)
+        Button(pf, text="Add photo row", command=self.add_row).pack(side=LEFT)
+        Button(pf, text="Select photos (multiple)", command=self.select_photos).pack(side=LEFT, padx=8)
         Button(pf, text="Clear", command=self.clear).pack(side=LEFT, padx=8)
 
         Label(root, text="Photos and display time (seconds):").pack(anchor="w", padx=8, pady=(8, 0))
         container = Frame(root)
         container.pack(fill=BOTH, expand=True, padx=8, pady=4)
-        self.canvas = Canvas(container, height=240)
+        self.canvas = Canvas(container, height=260)
         sb = Scrollbar(container, orient=VERTICAL, command=self.canvas.yview)
         self.canvas.configure(yscrollcommand=sb.set)
         sb.pack(side=RIGHT, fill=Y)
@@ -51,48 +76,42 @@ class App:
             self.music_path = path
             self.music_label.config(text=os.path.basename(path))
 
+    def add_row(self):
+        row = PhotoRow(self.rows_frame, self.remove_row)
+        self.rows.append(row)
+
+    def remove_row(self, row):
+        if row in self.rows:
+            self.rows.remove(row)
+
     def select_photos(self):
         paths = filedialog.askopenfilenames(title="Select photos", filetypes=[("Images", "*.jpg *.jpeg *.png *.bmp *.gif *.webp"), ("All", "*.*")])
         if not paths:
             return
-        for child in list(self.rows_frame.children.values()):
-            child.destroy()
-        self.photos = []
         for p in paths:
-            var = StringVar(value="7")
-            self.photos.append((p, var))
-        self.rebuild_rows()
-
-    def rebuild_rows(self):
-        for child in list(self.rows_frame.children.values()):
-            child.destroy()
-        for p, var in self.photos:
-            row = Frame(self.rows_frame)
-            row.pack(fill="x", pady=2)
-            Label(row, text=os.path.basename(p), width=30, anchor="w").pack(side=LEFT)
-            Entry(row, textvariable=var, width=8).pack(side=LEFT, padx=8)
-            Button(row, text="Remove", command=lambda pp=p: self.remove_photo(pp)).pack(side=LEFT)
-
-    def remove_photo(self, path):
-        self.photos = [x for x in self.photos if x[0] != path]
-        self.rebuild_rows()
+            row = PhotoRow(self.rows_frame, self.remove_row)
+            row.path = p
+            row.name_label.config(text=os.path.basename(p))
+            self.rows.append(row)
 
     def clear(self):
-        self.photos = []
+        for row in list(self.rows):
+            row.frame.destroy()
+        self.rows = []
         self.music_path = None
         self.music_label.config(text="No music selected")
-        self.rebuild_rows()
         self.status_var.set("Ready")
 
     def set_status(self, text):
         self.status_var.set(text)
 
     def create(self):
-        if not self.photos:
+        valid = [r for r in self.rows if r.path]
+        if not valid:
             messagebox.showerror("Error", "Add at least one photo.")
             return
         try:
-            durations = [float(v.get()) for _, v in self.photos]
+            durations = [float(r.time_var.get()) for r in valid]
         except ValueError:
             messagebox.showerror("Error", "Invalid time value.")
             return
@@ -105,12 +124,12 @@ class App:
         if not out_path.lower().endswith(".mp4"):
             out_path += ".mp4"
         self.create_btn.config(state="disabled")
-        threading.Thread(target=self._run, args=(out_path, durations), daemon=True).start()
+        threading.Thread(target=self._run, args=(out_path, valid, durations), daemon=True).start()
 
-    def _run(self, out_path, durations):
+    def _run(self, out_path, rows, durations):
         try:
             self.root.after(0, lambda: self.set_status("Loading images..."))
-            imgs = [ImageOps.exif_transpose(Image.open(p)).convert("RGB") for p, _ in self.photos]
+            imgs = [ImageOps.exif_transpose(Image.open(r.path)).convert("RGB") for r in rows]
             all_portrait = all(im.width < im.height for im in imgs)
             if all_portrait:
                 canvas_w, canvas_h = 1080, 1920
