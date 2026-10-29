@@ -1,5 +1,6 @@
 ﻿import os
 import threading
+from datetime import datetime
 from tkinter import Tk, Label, Entry, Button, Frame, Canvas, Scrollbar, filedialog, messagebox, StringVar, VERTICAL, RIGHT, Y, LEFT, BOTH, TOP
 from PIL import Image, ImageOps
 import numpy as np
@@ -54,7 +55,6 @@ class App:
         Button(pf, text="Clear", command=self.clear).pack(side=LEFT, padx=8)
         self.create_btn = Button(pf, text="Create Video", command=self.create)
         self.create_btn.pack(side=LEFT, padx=8)
-        Label(pf, textvariable=self.status_var).pack(side=LEFT, padx=8)
 
         Label(root, text="Photos and display time (seconds):").pack(anchor="w", padx=8, pady=(8, 0))
         container = Frame(root)
@@ -67,6 +67,9 @@ class App:
         self.rows_frame = Frame(self.canvas)
         self.canvas.create_window((0, 0), window=self.rows_frame, anchor="nw")
         self.rows_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        Label(root, textvariable=self.status_var).pack(anchor="w", padx=8, pady=4, side="bottom")
+
+        Label(root, textvariable=self.status_var).pack(anchor="w", padx=8, pady=4, side="bottom")
 
 
     def select_music(self):
@@ -138,7 +141,8 @@ class App:
 
     def _run(self, out_path, rows, durations):
         try:
-            self.root.after(0, lambda: self.set_status("Loading images..."))
+            start_time = datetime.now()
+            self.root.after(0, lambda: self.set_status("Started " + start_time.strftime("%H:%M:%S") + " - Loading images..."))
             imgs = [ImageOps.exif_transpose(Image.open(r.path)).convert("RGB") for r in rows]
             all_portrait = all(im.width < im.height for im in imgs)
             if all_portrait:
@@ -180,7 +184,8 @@ class App:
             self.root.after(0, lambda: self.set_status("Encoding video..."))
             video.write_videofile(out_path, fps=24, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast", logger=None)
             video.close()
-            self.root.after(0, lambda: self.set_status("Done: " + out_path))
+            end_time = datetime.now()
+            self.root.after(0, lambda: self.set_status("Done: " + out_path + " | Started " + start_time.strftime("%H:%M:%S") + " Ended " + end_time.strftime("%H:%M:%S")))
             self.root.after(0, lambda: messagebox.showinfo("Done", "Saved to\n" + out_path))
         except Exception as e:
             self.root.after(0, lambda: self.set_status("Error: " + str(e)))
