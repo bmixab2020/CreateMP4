@@ -35,6 +35,7 @@ class App:
         root.title("CreateMP4")
         self.rows = []
         self.music_path = None
+        self.status_var = StringVar(value="Ready")
 
         Label(root, text="Video name:").pack(anchor="w", padx=8, pady=(8, 0))
         self.name_var = StringVar(value="video")
@@ -51,6 +52,9 @@ class App:
         Button(pf, text="Add photo row", command=self.add_row).pack(side=LEFT)
         Button(pf, text="Select photos (multiple)", command=self.select_photos).pack(side=LEFT, padx=8)
         Button(pf, text="Clear", command=self.clear).pack(side=LEFT, padx=8)
+        self.create_btn = Button(pf, text="Create Video", command=self.create)
+        self.create_btn.pack(side=LEFT, padx=8)
+        Label(pf, textvariable=self.status_var).pack(side=LEFT, padx=8)
 
         Label(root, text="Photos and display time (seconds):").pack(anchor="w", padx=8, pady=(8, 0))
         container = Frame(root)
@@ -64,11 +68,6 @@ class App:
         self.canvas.create_window((0, 0), window=self.rows_frame, anchor="nw")
         self.rows_frame.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
 
-        self.status_var = StringVar(value="Ready")
-        Label(root, textvariable=self.status_var).pack(anchor="w", padx=8, pady=4)
-
-        self.create_btn = Button(root, text="Create Video", command=self.create)
-        self.create_btn.pack(pady=8)
 
     def select_music(self):
         path = filedialog.askopenfilename(title="Select music", filetypes=[("Audio", "*.mp3 *.wav *.m4a"), ("All", "*.*")])
@@ -99,6 +98,7 @@ class App:
             row.frame.destroy()
         self.rows = []
         self.music_path = None
+        self.status_var = StringVar(value="Ready")
         self.music_label.config(text="No music selected")
         self.status_var.set("Ready")
 
